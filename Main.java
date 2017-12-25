@@ -14,7 +14,7 @@ import javax.swing.*;
 
 public class Main {
     public static void main(String[] args) throws Exception{
-        GetData.run();
+        SetData.run();
     }
 }
 
@@ -129,6 +129,39 @@ class GetData implements Watcher {
                     byte[] newData = zk.getData(event.getPath(), true, stat);
                     System.out.println("Reget Data: " + new String(newData));
                     System.out.println("Reget Stat: " + stat);
+                } catch (Exception e) {}
+            }
+        }
+    }
+}
+
+
+class SetData implements Watcher {
+    private static CountDownLatch connectedSemaphore = new CountDownLatch(1);
+    private static ZooKeeper zk = null;
+
+    public static void run() throws Exception {
+        String path = "/zk-book";
+        zk = new ZooKeeper("111.230.37.64:2181", 5000, new SetData());
+        connectedSemaphore.await();
+        zk.create(path, "hello".getBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+        Stat stat = new Stat();
+        byte[] data = zk.getData(path, new GetData(), stat);
+        System.out.println(new String(data));
+
+        zk.setData(path,"welcome".getBytes(), -1);
+        data = zk.getData(path, new GetData(), stat);
+        System.out.println(new String(data));
+
+        Thread.sleep(Integer.MAX_VALUE);
+    }
+
+    public void process(WatchedEvent event) {
+        if (KeeperState.SyncConnected == event.getState()) {
+            if (EventType.None == event.getType() && null == event.getPath()) {
+                connectedSemaphore.countDown();
+            } else if (event.getType() == EventType.NodeDataChanged) {
+                try {
                 } catch (Exception e) {}
             }
         }
